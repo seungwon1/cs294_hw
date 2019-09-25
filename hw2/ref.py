@@ -10,7 +10,6 @@ import logz
 import os
 import time
 import inspect
-import math
 from multiprocessing import Process
 
 #============================================================================================#
@@ -144,15 +143,14 @@ class Agent(object):
         """
         if self.discrete:
             # YOUR_CODE_HERE
-            sy_logits_na = build_mlp(sy_ob_no, output_size = self.ac_dim, scope = 'fc_disc', n_layers = self.n_layers, size = self.size)
+            sy_logits_na = self.build_mlp(
             return sy_logits_na
         else:
             # YOUR_CODE_HERE
-            sy_mean = build_mlp(sy_ob_no, output_size = self.ac_dim, scope = 'fc_conti', n_layers = self.n_layers, size = self.size)
-            #with tf.variable_scope("std", reuse=tf.AUTO_REUSE):
-            sy_logstd = tf.get_variable('logstd', shape = self.ac_dim, dtype=tf.float32)
+            sy_mean = None
+            sy_logstd = None
             return (sy_mean, sy_logstd)
-            
+
     #========================================================================================#
     #                           ----------PROBLEM 2----------
     #========================================================================================#
@@ -180,17 +178,15 @@ class Agent(object):
         
                  This reduces the problem to just sampling z. (Hint: use tf.random_normal!)
         """
+        raise NotImplementedError
         if self.discrete:
             sy_logits_na = policy_parameters
             # YOUR_CODE_HERE
-            sy_sampled_ac = tf.random.categorical(logits = policy_parameters, num_samples = 1)
-            sy_sampled_ac = tf.reshape(sy_sampled_ac, [-1]) # flatten, of spahe (batch_size, )
+            sy_sampled_ac = None
         else:
             sy_mean, sy_logstd = policy_parameters
             # YOUR_CODE_HERE
-            z = tf.random.normal(shape = tf.shape(sy_logstd), mean = 0.0, stddev = sy_logstd) # of shape (self.ac_dim, )
-            z = tf.expand_dims(z, axis = 0) # of shape (1, self.ac_dim), for vectorizing
-            sy_sampled_ac = sy_mean + z # of shape (batch_size, self.ac_dim)
+            sy_sampled_ac = None
         return sy_sampled_ac
 
     #========================================================================================#
@@ -219,20 +215,15 @@ class Agent(object):
                 For the discrete case, use the log probability under a categorical distribution.
                 For the continuous case, use the log probability under a multivariate gaussian.
         """
+        raise NotImplementedError
         if self.discrete:
             sy_logits_na = policy_parameters
             # YOUR_CODE_HERE
-            normalized_prob = tf.nn.softmax(sy_logits_na, axis = 1)
-            sy_logprob_n = tf.log(normalized_prob + 1e-10) # of shape (batch_size, self.ac_dim), + 1e-10 for numerical stability
-            
-            action_mask = tf.one_hot(sy_ac_na, self.ac_dim, dtype = tf.float32) # mask of shape (batch_size, self.ac_dim)
-            sy_logprob_n = tf.reduce_sum(sy_logprob_n * action_mask, axis = 1) # of shape (batch_size, )
+            sy_logprob_n = None
         else:
             sy_mean, sy_logstd = policy_parameters
             # YOUR_CODE_HERE
-            sy_logstd = tf.expand_dims(sy_logstd, axis = 0) # of shape (1, self.ac_dim)
-            log_prob = (-1/2.0)*(tf.square((sy_ac_na - sy_mean)/(sy_logstd)) + 2*tf.log(sy_logstd) + tf.log(2*math.pi)) # (batch_size, selfac_dim)
-            sy_logprob_n = tf.reduce_sum(log_prob, axis = 1) # of shape (batch_size, )
+            sy_logprob_n = None
         return sy_logprob_n
 
     def build_computation_graph(self):
@@ -273,12 +264,15 @@ class Agent(object):
         #                           ----------PROBLEM 2----------
         # Loss Function and Training Operation
         #========================================================================================#
-        # YOUR CODE HERE
-        negative_likelihood = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.self.sy_ac_na, logits=self.sy_logprob_n) # of shape (batch_size, ) # self.sy_ac_na
-        weighted_ne_li = tf.multiply(negative_likelihood, self.sy_adv_n) # of shape (batch_size, )
-        loss = tf.reduce_mean(weighted_ne_li)
-        #with tf.variable_scope('opt', reuse = tf.AUTO_REUSE) as scope:
+        loss = None # YOUR CODE HERE
+        
+        
+        
+        
+        
+        
         self.update_op = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
+
         #========================================================================================#
         #                           ----------PROBLEM 6----------
         # Optional Baseline
@@ -324,9 +318,8 @@ class Agent(object):
             #====================================================================================#
             #                           ----------PROBLEM 3----------
             #====================================================================================#
-            # YOUR CODE HERE
-            # self.init_tf_sess()
-            ac = self.sess.run(self.sy_sampled_ac, feed_dict={self.sy_ob_no:ob.reshape(-1, 4)}) 
+            raise NotImplementedError
+            ac = None # YOUR CODE HERE
             ac = ac[0]
             acs.append(ac)
             ob, rew, done, _ = env.step(ac)
@@ -410,35 +403,9 @@ class Agent(object):
         """
         # YOUR_CODE_HERE
         if self.reward_to_go:
-            q_n_temp = []
-            for idx, each_rew_his in enumerate(re_n):
-                each_q_n_temp = []
-                for idx2, each_element in enumerate(each_rew_his):
-                    gamma_geo_series = np.geomspace(1, self.gamma**(len(each_rew_his)-idx2-1), num=len(each_rew_his)-idx2)
-                    rew_sum = np.sum(gamma_geo_series*each_rew_his[idx2:])
-                    each_q_n_temp.append(rew_sum)
-                q_n_temp.append(np.array(each_q_n_temp))
-            q_n = np.hstack(q_n_temp).ravel()        
+            raise NotImplementedError
         else:
-            for idx, each_rew_his in enumerate(re_n):
-                gamma_geo_series = np.geomspace(1, self.gamma**(len(each_rew_his)-1), num=len(each_rew_his))
-                rew_sum = np.sum(gamma_geo_series*each_rew_his)
-                q_n_temp = rew_sum * np.ones((len(each_rew_his), ))
-                if idx == 0:
-                    q_n = q_n_temp
-                else:
-                    q_n = np.hstack((q_n, q_n_temp))
-                    """
-                    print('idx', idx)
-                    #print(each_rew_his, q_n_temp, q_n)
-                    print('each_rew_his', each_rew_his)
-                    print('q_n_temp', q_n_temp)
-                    print('geo_seriew with gamma', gamma_geo_series, self.gamma)
-                    print('q_n', q_n.shape)
-                    
-        #print(re_n, q_n)
-        print('total', len(re_n), q_n.shape)
-        """
+            raise NotImplementedError
         return q_n
 
     def compute_advantage(self, ob_no, q_n):
@@ -505,9 +472,8 @@ class Agent(object):
         if self.normalize_advantages:
             # On the next line, implement a trick which is known empirically to reduce variance
             # in policy gradient methods: normalize adv_n to have mean zero and std=1.
-            # raise NotImplementedError
-            # None # YOUR_CODE_HERE
-            adv_n = (adv_n - np.mean(adv_n))/np.std(adv_n)
+            raise NotImplementedError
+            adv_n = None # YOUR_CODE_HERE
         return q_n, adv_n
 
     def update_parameters(self, ob_no, ac_na, q_n, adv_n):
@@ -558,8 +524,8 @@ class Agent(object):
         # and after an update, and then log them below. 
 
         # YOUR_CODE_HERE
-        # raise NotImplementedError
-        self.sess.run(self.update_op, feed_dict={self.sy_ob_no:ob_no, self.sy_ac_na:ac_na, self.sy_adv_n:adv_n})
+        raise NotImplementedError
+
 
 def train_PG(
         exp_name,
@@ -631,7 +597,7 @@ def train_PG(
         'nn_baseline': nn_baseline,
         'normalize_advantages': normalize_advantages,
     }
-    
+
     agent = Agent(computation_graph_args, sample_trajectory_args, estimate_return_args)
 
     # build computation graph
@@ -682,7 +648,7 @@ def main():
     parser.add_argument('env_name', type=str)
     parser.add_argument('--exp_name', type=str, default='vpg')
     parser.add_argument('--render', action='store_true')
-    parser.add_argument('--discount', type=float, default=0.9)
+    parser.add_argument('--discount', type=float, default=1.0)
     parser.add_argument('--n_iter', '-n', type=int, default=100)
     parser.add_argument('--batch_size', '-b', type=int, default=1000)
     parser.add_argument('--ep_len', '-ep', type=float, default=-1.)
@@ -690,7 +656,7 @@ def main():
     parser.add_argument('--reward_to_go', '-rtg', action='store_true')
     parser.add_argument('--dont_normalize_advantages', '-dna', action='store_true')
     parser.add_argument('--nn_baseline', '-bl', action='store_true')
-    parser.add_argument('--seed', '-seed', type=int, default=1)
+    parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--n_experiments', '-e', type=int, default=1)
     parser.add_argument('--n_layers', '-l', type=int, default=2)
     parser.add_argument('--size', '-s', type=int, default=64)
@@ -710,9 +676,7 @@ def main():
     for e in range(args.n_experiments):
         seed = args.seed + 10*e
         print('Running experiment with seed %d'%seed)
-        
-        
-        
+
         def train_func():
             train_PG(
                 exp_name=args.exp_name,
@@ -731,12 +695,9 @@ def main():
                 n_layers=args.n_layers,
                 size=args.size
                 )
-        train_func()
-        
-        """
         # # Awkward hacky process runs, because Tensorflow does not like
         # # repeatedly calling train_PG in the same thread.
-        p = Process(target=train_func, args = tuple())#args=tuple())
+        p = Process(target=train_func, args=tuple())
         p.start()
         processes.append(p)
         # if you comment in the line below, then the loop will block 
@@ -745,6 +706,6 @@ def main():
 
     for p in processes:
         p.join()
-        """
+
 if __name__ == "__main__":
     main()
