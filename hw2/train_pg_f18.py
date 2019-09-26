@@ -274,7 +274,7 @@ class Agent(object):
         # Loss Function and Training Operation
         #========================================================================================#
         # YOUR CODE HERE
-        negative_likelihood = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tf.self.sy_ac_na, logits=self.sy_logprob_n) # of shape (batch_size, ) # self.sy_ac_na
+        negative_likelihood = -self.sy_logprob_n
         weighted_ne_li = tf.multiply(negative_likelihood, self.sy_adv_n) # of shape (batch_size, )
         loss = tf.reduce_mean(weighted_ne_li)
         #with tf.variable_scope('opt', reuse = tf.AUTO_REUSE) as scope:
@@ -287,7 +287,7 @@ class Agent(object):
         # neural network baseline. These will be used to fit the neural network baseline. 
         #========================================================================================#
         if self.nn_baseline:
-            raise NotImplementedError
+            # raise NotImplementedError
             self.baseline_prediction = tf.squeeze(build_mlp(
                                     self.sy_ob_no, 
                                     1, 
@@ -295,8 +295,8 @@ class Agent(object):
                                     n_layers=self.n_layers,
                                     size=self.size))
             # YOUR_CODE_HERE
-            self.sy_target_n = None
-            baseline_loss = None
+            self.sy_target_n = tf.placeholder(tf.float32, [None])
+            baseline_loss = tf.reduce_mean(tf.square(self.sy_target_n - self.baseline_prediction))
             self.baseline_update_op = tf.train.AdamOptimizer(self.learning_rate).minimize(baseline_loss)
 
     def sample_trajectories(self, itr, env):
@@ -428,17 +428,6 @@ class Agent(object):
                     q_n = q_n_temp
                 else:
                     q_n = np.hstack((q_n, q_n_temp))
-                    """
-                    print('idx', idx)
-                    #print(each_rew_his, q_n_temp, q_n)
-                    print('each_rew_his', each_rew_his)
-                    print('q_n_temp', q_n_temp)
-                    print('geo_seriew with gamma', gamma_geo_series, self.gamma)
-                    print('q_n', q_n.shape)
-                    
-        #print(re_n, q_n)
-        print('total', len(re_n), q_n.shape)
-        """
         return q_n
 
     def compute_advantage(self, ob_no, q_n):
@@ -470,8 +459,10 @@ class Agent(object):
             # Hint #bl1: rescale the output from the nn_baseline to match the statistics
             # (mean and std) of the current batch of Q-values. (Goes with Hint
             # #bl2 in Agent.update_parameters.
-            raise NotImplementedError
-            b_n = None # YOUR CODE HERE
+            
+            # raise NotImplementedError
+            b_n = self.sess.run(self.baseline_prediction, feed_dict={self.sy_ob_no:ob_no}) # of shape (sum_of_path_lengths)
+            b_n = (b_n - np.mean(q_n))/np.std(q_n)
             adv_n = q_n - b_n
         else:
             adv_n = q_n.copy()
@@ -543,8 +534,9 @@ class Agent(object):
             # Agent.compute_advantage.)
 
             # YOUR_CODE_HERE
-            raise NotImplementedError
-            target_n = None 
+            # raise NotImplementedError
+            target_n = (q_n - np.mean(q_n)) / np.std(q_n)
+            self.sess.run(self.baseline_update_op, feed_dict = {self.sy_ob_no: ob_no, self.sy_target_n:target_n})
 
         #====================================================================================#
         #                           ----------PROBLEM 3----------
@@ -588,7 +580,10 @@ def train_PG(
     #========================================================================================#
     # Set Up Env
     #========================================================================================#
+    ## 
+    
 
+    
     # Make the gym environment
     env = gym.make(env_name)
 
@@ -710,7 +705,6 @@ def main():
     for e in range(args.n_experiments):
         seed = args.seed + 10*e
         print('Running experiment with seed %d'%seed)
-        
         
         
         def train_func():
