@@ -188,9 +188,10 @@ class Agent(object):
         else:
             sy_mean, sy_logstd = policy_parameters
             # YOUR_CODE_HERE
-            z = tf.random.normal(shape = tf.shape(sy_logstd), mean = 0.0, stddev = sy_logstd) # of shape (self.ac_dim, )
-            z = tf.expand_dims(z, axis = 0) # of shape (1, self.ac_dim), for vectorizing
-            sy_sampled_ac = sy_mean + z # of shape (batch_size, self.ac_dim)
+            #z = tf.random.normal(shape = tf.shape(sy_logstd), mean = 0.0, stddev = sy_logstd) # of shape (self.ac_dim, )
+            #z = tf.expand_dims(z, axis = 0) # of shape (1, self.ac_dim), for vectorizing
+            #sy_sampled_ac = sy_mean + z # of shape (batch_size, self.ac_dim)
+            sy_sampled_ac = tf.random.normal(shape = tf.shape(sy_mean), mean = sy_mean, stddev = sy_logstd) # of shape (batch_size, self.ac_dim)
         return sy_sampled_ac
 
     #========================================================================================#
@@ -296,7 +297,7 @@ class Agent(object):
                                     size=self.size))
             # YOUR_CODE_HERE
             self.sy_target_n = tf.placeholder(tf.float32, [None])
-            baseline_loss = tf.reduce_mean(tf.square(self.sy_target_n - self.baseline_prediction))
+            baseline_loss = tf.reduce_mean(tf.square(self.sy_target_n - self.baseline_prediction))/2.0
             self.baseline_update_op = tf.train.AdamOptimizer(self.learning_rate).minimize(baseline_loss)
 
     def sample_trajectories(self, itr, env):
@@ -316,6 +317,7 @@ class Agent(object):
         ob = env.reset()
         obs, acs, rewards = [], [], []
         steps = 0
+        ob_space = ob.shape[0]
         while True:
             if animate_this_episode:
                 env.render()
@@ -326,7 +328,7 @@ class Agent(object):
             #====================================================================================#
             # YOUR CODE HERE
             # self.init_tf_sess()
-            ac = self.sess.run(self.sy_sampled_ac, feed_dict={self.sy_ob_no:ob.reshape(-1, 4)}) 
+            ac = self.sess.run(self.sy_sampled_ac, feed_dict={self.sy_ob_no:ob.reshape(-1,ob_space)}) 
             ac = ac[0]
             acs.append(ac)
             ob, rew, done, _ = env.step(ac)
@@ -419,6 +421,7 @@ class Agent(object):
                     each_q_n_temp.append(rew_sum)
                 q_n_temp.append(np.array(each_q_n_temp))
             q_n = np.hstack(q_n_temp).ravel()        
+            
         else:
             for idx, each_rew_his in enumerate(re_n):
                 gamma_geo_series = np.geomspace(1, self.gamma**(len(each_rew_his)-1), num=len(each_rew_his))
