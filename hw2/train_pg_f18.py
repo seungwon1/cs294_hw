@@ -413,15 +413,17 @@ class Agent(object):
         # YOUR_CODE_HERE
         if self.reward_to_go:
             q_n_temp = []
-            for idx, each_rew_his in enumerate(re_n):
-                each_q_n_temp = []
-                for idx2, each_element in enumerate(each_rew_his):
-                    gamma_geo_series = np.geomspace(1, self.gamma**(len(each_rew_his)-idx2-1), num=len(each_rew_his)-idx2)
-                    rew_sum = np.sum(gamma_geo_series*each_rew_his[idx2:])
-                    each_q_n_temp.append(rew_sum)
-                q_n_temp.append(np.array(each_q_n_temp))
-            q_n = np.hstack(q_n_temp).ravel()        
-            
+            for idx, each_rew_his in enumerate(re_n): # matrix multiplication can reduce runtime
+                each_rew_matrix = (each_rew_his.reshape(-1, 1) * np.ones((1, len(each_rew_his)))).T
+                gamma_geo_series = np.geomspace(1, self.gamma**(len(each_rew_his)-1), num=len(each_rew_his)).reshape(-1, 1)
+                gamma_geo_series_matrix = (gamma_geo_series * np.ones((1, len(each_rew_his)))).T / (gamma_geo_series)
+                
+                idx_clear = gamma_geo_series_matrix > 1.0
+                gamma_geo_series_matrix[idx_clear] = 0
+                
+                each_q_n_temp = np.sum(each_rew_matrix * gamma_geo_series_matrix, axis = 1) # of shape (length of each_rew_his,)
+                q_n_temp.append(each_q_n_temp)
+            q_n = np.hstack(q_n_temp).ravel()
         else:
             for idx, each_rew_his in enumerate(re_n):
                 gamma_geo_series = np.geomspace(1, self.gamma**(len(each_rew_his)-1), num=len(each_rew_his))
@@ -571,7 +573,8 @@ def train_PG(
         nn_baseline, 
         seed,
         n_layers,
-        size):
+        size,
+        step_size):
 
     start = time.time()
 
@@ -655,7 +658,11 @@ def train_PG(
         re_n = [path["reward"] for path in paths]
 
         q_n, adv_n = agent.estimate_return(ob_no, re_n)
-        agent.update_parameters(ob_no, ac_na, q_n, adv_n)
+        if step_size == 1:
+            agent.update_parameters(ob_no, ac_na, q_n, adv_n)
+        else:
+            for _ in range(step_size):
+                agent.update_parameters(ob_no, ac_na, q_n, adv_n)
 
         # Log diagnostics
         returns = [path["reward"].sum() for path in paths]
@@ -692,6 +699,7 @@ def main():
     parser.add_argument('--n_experiments', '-e', type=int, default=1)
     parser.add_argument('--n_layers', '-l', type=int, default=2)
     parser.add_argument('--size', '-s', type=int, default=64)
+    parser.add_argument('--step_size', '-st', type=int, default=1)
     args = parser.parse_args()
 
     if not(os.path.exists('data')):
@@ -726,7 +734,8 @@ def main():
                 nn_baseline=args.nn_baseline, 
                 seed=seed,
                 n_layers=args.n_layers,
-                size=args.size
+                size=args.size,
+                step_size = args.step_size
                 )
         train_func()
         
