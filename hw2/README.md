@@ -26,8 +26,8 @@ default, normalize_advantages=True.
 by default.
 --exp_name : Name for experiment, which goes into the name for the data directory.
 ```
-![PG CartPole-v0 sb](figure/average_return.png)
-![PG CartPole-v0 lb](figure/lb_avg_return.png)
+![PG CartPole-v0 sb](figure/average_return2.png)
+![PG CartPole-v0 lb](figure/lb_avg_return2.png)
 
 
 - Left: PG CartPole-v0 small batch size (1000), Right: PG CartPole-v0 large batch size (5000)
@@ -60,11 +60,10 @@ python train_pg_f18.py LunarLanderContinuous-v2 -ep 1000 --discount 0.99 -n 100 
 ```
 python train_pg_f18.py HalfCheetah-v2 -ep 150 --discount 0.9 -n 100 -e 3 -l 2 -s 32 -b <b> -lr <r> -rtg --nn_baseline --exp_name hc_b<b>_r<r>
 ```
-![HalfCheetah-v2](figure/hc_1.png)
-![HalfCheetah-v2_2](figure/hc_2.png)
+![HalfCheetah-v2](figure/hc_12.png)
+![HalfCheetah-v2_2](figure/hc_22.png)
 
 In the left figure, large batch makes better performance. In right figure, PG with large learning rate performs worse.
-
 
 ## Bonus: single-step PG and multi-step PG - LunarLanderContinuous-v2
 ```
