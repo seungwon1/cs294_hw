@@ -68,14 +68,14 @@ In the left figure, large batch makes better performance. In right figure, PG wi
 #### Experiments with optimal learning rate (0.005) and batch size (10000)
 ![HalfCheetah-v2_3](figure/hc_add.png)
 
-## Bonus: single-step PG and multi-step PG - LunarLanderContinuous-v2
+## Bonus: single-step GD and multi-step GD - LunarLanderContinuous-v2
 ```
 python train_pg_f18.py LunarLanderContinuous-v2 -ep 1000 --discount 0.99 -n 50 -e 1 -l 2 -s 64 -st <st> -b 40000 -lr 0.005 -rtg --nn_baseline --exp_name ll_b40000_r0.005_st<st>
 
 -st : Number of gradient descent steps in the same batch of data
 ```
 ![LunarLanderContinuous-v2_2](figure/multi_step.png)
-With multiple steps, the policy gets to the 180 average return in less than 20 iterations (step size at 2, 5), which is far less than single step gradient descent.
+With multiple steps, the policy gets to the 180 average return in less than 20 iterations (step size at 2, 5), which is far less than single step gradient descent. 
 
 
 
