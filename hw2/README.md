@@ -65,6 +65,9 @@ python train_pg_f18.py HalfCheetah-v2 -ep 150 --discount 0.9 -n 100 -e 3 -l 2 -s
 
 In the left figure, large batch makes better performance. In right figure, PG with large learning rate performs worse.
 
+#### Experiments with optimal learning rate (0.005) and batch size (10000)
+![HalfCheetah-v2_3](figure/hc_add.png)
+
 ## Bonus: single-step PG and multi-step PG - LunarLanderContinuous-v2
 ```
 python train_pg_f18.py LunarLanderContinuous-v2 -ep 1000 --discount 0.99 -n 50 -e 1 -l 2 -s 64 -st <st> -b 40000 -lr 0.005 -rtg --nn_baseline --exp_name ll_b40000_r0.005_st<st>
