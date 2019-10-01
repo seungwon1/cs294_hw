@@ -5,12 +5,12 @@ http://rail.eecs.berkeley.edu/deeprlcourse/static/homeworks/hw2.pdf
 ## CartPole-v0
 #### Command line
 ```
-python train_pg_f18.py CartPole-v0 -n 100 -b 1000 -e 1 -dna --exp_name sb_no_rtg_dna
-python train_pg_f18.py CartPole-v0 -n 100 -b 1000 -e 1 -rtg -dna --exp_name sb_rtg_dna
-python train_pg_f18.py CartPole-v0 -n 100 -b 1000 -e 1 -rtg --exp_name sb_rtg_na
-python train_pg_f18.py CartPole-v0 -n 100 -b 5000 -e 1 -dna --exp_name lb_no_rtg_dna
-python train_pg_f18.py CartPole-v0 -n 100 -b 5000 -e 1 -rtg -dna --exp_name lb_rtg_dna
-python train_pg_f18.py CartPole-v0 -n 100 -b 5000 -e 1 -rtg --exp_name lb_rtg_na
+python train_pg_f18.py CartPole-v0 -n 100 -b 1000 -e 3 -dna --exp_name sb_no_rtg_dna
+python train_pg_f18.py CartPole-v0 -n 100 -b 1000 -e 3 -rtg -dna --exp_name sb_rtg_dna
+python train_pg_f18.py CartPole-v0 -n 100 -b 1000 -e 3 -rtg --exp_name sb_rtg_na
+python train_pg_f18.py CartPole-v0 -n 100 -b 5000 -e 3 -dna --exp_name lb_no_rtg_dna
+python train_pg_f18.py CartPole-v0 -n 100 -b 5000 -e 3 -rtg -dna --exp_name lb_rtg_dna
+python train_pg_f18.py CartPole-v0 -n 100 -b 5000 -e 3 -rtg --exp_name lb_rtg_na
 ```
 #### args
 ```
@@ -30,7 +30,8 @@ by default.
 ![PG CartPole-v0 lb](figure/lb_avg_return.png)
 
 
-Left: PG CartPole-v0 small batch size (1000), Right: PG CartPole-v0 large batch size (5000)
+- Left: PG CartPole-v0 small batch size (1000), Right: PG CartPole-v0 large batch size (5000)
+
 With small batch(left figure), gradient estimators using reward-to-go (sb_rtg_dna, sb_rtg_na) perform best and both learning curves are able to reach maximum average return (200). Sb_rtg_na model is able to reach maximum return in less than 20 iteration since normalizing advantage reduces variance and makes faster convergence. Similarily, with large batch(right figure), model using reward-to-go performs better. However, normalizing advantage doesn't make significant difference. This is because there the variance of performance becomes lower due to the large number of batch size. Using normalization and reward to go function, we can achieve a maximum score of 200 in both small and large batch in less than 40 iterations.
 
 
@@ -42,7 +43,7 @@ python train_pg_f18.py InvertedPendulum-v2 -ep 1000 --discount 0.9 -n 100 -e 1 -
 ```
 ![InvertedPendulum-v2](figure/ip_maximum.png)
 
-Hyperparameter tuning were performed in batch size at [1000, 2000, 3000, 4000, 5000], learning rate at [1e-2, 3e-2, 6e-2, 3e-3, 1e-3, 3e-4, 1e-4]
+Hyperparameter tuning were performed in batch size at [1000, 2000, 3000, 4000, 5000], learning rate at [1e-2, 3e-2, 6e-2, 3e-3, 1e-3, 3e-4, 1e-4].
 With batch size at 3000, learning rate at 6e-2, the policy gets to maximum score of 1000 arount 40 iterations.
 
 
@@ -65,10 +66,14 @@ python train_pg_f18.py HalfCheetah-v2 -ep 150 --discount 0.9 -n 100 -e 3 -l 2 -s
 In the left figure, large batch makes better performance. In right figure, PG with large learning rate performs worse.
 
 
-## Bonus: single-step PG and multi-step PG
-In progress
+## Bonus: single-step PG and multi-step PG - LunarLanderContinuous-v2
+```
+python train_pg_f18.py LunarLanderContinuous-v2 -ep 1000 --discount 0.99 -n 50 -e 1 -l 2 -s 64 -st <st> -b 40000 -lr 0.005 -rtg --nn_baseline --exp_name ll_b40000_r0.005_st<st>
 
-
+-st : Number of gradient descent steps in the same batch of data
+```
+![LunarLanderContinuous-v2_2](figure/multi_step.png)
+With multiple steps, the policy gets to the 180 average return in less than 20 iterations (step size at 2, 5), which is far less than single step gradient descent.
 
 
 
