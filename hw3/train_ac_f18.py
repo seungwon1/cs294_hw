@@ -602,9 +602,9 @@ def main():
                 n_layers=args.n_layers,
                 size=args.size
                 )
-        train_func()
         
-        """
+        
+        
         # # Awkward hacky process runs, because Tensorflow does not like
         # # repeatedly calling train_PG in the same thread.
         p = Process(target=train_func, args = tuple())#args=tuple())
@@ -616,7 +616,7 @@ def main():
 
     for p in processes:
         p.join()
-        """
+        
 
 if __name__ == "__main__":
     main()
