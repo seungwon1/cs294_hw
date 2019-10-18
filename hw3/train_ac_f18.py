@@ -5,7 +5,7 @@ Adapted for CS294-112 Fall 2018 by Soroush Nasiriany, Sid Reddy, and Greg Kahn
 """
 import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp
+# import tensorflow_probability as tfp
 import gym
 import logz
 import os
@@ -294,17 +294,17 @@ class Agent(object):
                 time.sleep(0.1)
             obs.append(ob)
             # raise NotImplementedError
-            ac = self.sess.run(self.sy_sampled_ac, feed_dict={self.sy_ob_no:ob.reshape(-1,ob_space)}) 
+            ac = self.sess.run(self.sy_sampled_ac, feed_dict={self.sy_ob_no:ob.reshape(-1,self.ob_dim)}) 
             ac = ac[0]
             acs.append(ac)
             ob, rew, done, _ = env.step(ac)
             # add the observation after taking a step to next_obs
             # YOUR CODE HERE
             # raise NotImplementedError
-            ac = self.sess.run(self.sy_sampled_ac, feed_dict={self.sy_ob_no:ob.reshape(-1,ob_space)}) 
-            ac = ac[0]
-            acs.append(ac)
-            ob, rew, done, _ = env.step(ac)
+            # ac = self.sess.run(self.sy_sampled_ac, feed_dict={self.sy_ob_no:ob.reshape(-1,self.ob_dim)}) 
+            # ac = ac[0]
+            # acs.append(ac)
+            # ob, rew, done, _ = env.step(ac)
             # obs.append(ob)
             next_obs.append(ob)
             rewards.append(rew)
@@ -356,7 +356,7 @@ class Agent(object):
         # otherwise the values will grow without bound.
         # YOUR CODE HERE
         # raise NotImplementedError
-        
+         
         v_next_s = self.sess.run(self.critic_prediction, feed_dict={self.sy_ob_no:next_ob_no})
         v_s = self.sess.run(self.critic_prediction, feed_dict={self.sy_ob_no:ob_no})
         q_sa = re_n + (1-terminal_n) * self.gamma * v_next_s # (sum_of_path_lengths, ob_dim)
@@ -364,10 +364,11 @@ class Agent(object):
         
         if self.normalize_advantages:
             # raise NotImplementedError
-            b_n = self.sess.run(self.baseline_prediction, feed_dict={self.sy_ob_no:ob_no}) # of shape (sum_of_path_lengths)
-            b_n = (b_n - np.mean(q_n))/np.std(q_n)
-            adv_n = q_n - b_n
+            # b_n = self.sess.run(self.baseline_prediction, feed_dict={self.sy_ob_no:ob_no}) # of shape (sum_of_path_lengths)
+            # b_n = (b_n - np.mean(q_n))/np.std(q_n)
+            # adv_n = q_n - b_n
             #adv_n = None # YOUR_HW2 CODE_HERE
+            adv_n = (adv_n - np.mean(adv_n))/np.std(adv_n)
         return adv_n
 
     def update_critic(self, ob_no, next_ob_no, re_n, terminal_n):
@@ -601,9 +602,12 @@ def main():
                 n_layers=args.n_layers,
                 size=args.size
                 )
+        train_func()
+        
+        """
         # # Awkward hacky process runs, because Tensorflow does not like
-        # # repeatedly calling train_AC in the same thread.
-        p = Process(target=train_func, args=tuple())
+        # # repeatedly calling train_PG in the same thread.
+        p = Process(target=train_func, args = tuple())#args=tuple())
         p.start()
         processes.append(p)
         # if you comment in the line below, then the loop will block 
@@ -612,7 +616,7 @@ def main():
 
     for p in processes:
         p.join()
-        
+        """
 
 if __name__ == "__main__":
     main()
