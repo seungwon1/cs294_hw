@@ -100,7 +100,8 @@ class QLearner(object):
     self.session = session
     self.exploration = exploration
     self.rew_file = str(uuid.uuid4()) + '.pkl' if rew_file is None else rew_file
-
+    self.double_q = double_q
+    
     ###############
     # BUILD MODEL #
     ###############
@@ -159,24 +160,28 @@ class QLearner(object):
     ######
 
     # YOUR CODE HERE
-    q_online = qfunc(self.obs_t_ph, self.num_actions, scope='online', reuse=False)
-    q_online_act = tf.reduce_sum(q_onine * tf.one_hot(self.act_t_ph, self.num_actions, dtype = tf.float32), axis = 1)
-    self.q_online_greedy_idx = tf.argmax(q_onine, axis = 1)
     
-    q_target = qfunc(self.obs_tp1_ph, self.num_actions, scope='target', reuse=False)
-    if double_q:
+    q_online = q_func(obs_t_float, self.num_actions, scope='q_func', reuse=False)
+    q_online_act = tf.reduce_sum(q_online * tf.one_hot(self.act_t_ph, self.num_actions, dtype = tf.float32), axis = 1)
+    self.q_online_greedy_idx = tf.argmax(q_online, axis = 1)
+    
+    q_target = q_func(obs_tp1_float, self.num_actions, scope='target', reuse=False)
+    
+    if self.double_q:
         self.obs_double = tf.placeholder(tf.float32 if lander else tf.uint8, [None] + list(input_shape))
-        q_double_greedy = tf.argmax(qfunc(self.obs_double, self.num_actions, scope='online', reuse=True), axis = 1)
+        obs_double_float = tf.cast(self.obs_double, tf.float32)/255.0
+        q_double_greedy = tf.argmax(q_func(obs_double_float, self.num_actions, scope='q_func', reuse=True), axis = 1)
         q_target_double = tf.reduce_sum(q_target * tf.one_hot(q_double_greedy, self.num_actions, dtype = tf.float32), axis = 1)
         target = self.rew_t_ph + (1-self.done_mask_ph)*gamma*q_target_double
     else:
         q_target_greedy = tf.reduce_max(q_target, axis = 1)
         target = self.rew_t_ph + (1-self.done_mask_ph)* gamma * q_target_greedy
     
-    q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='online')
-    target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target')
+    # q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='online')
+    q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = 'q_func')
+    target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = 'target')
     
-    self.total_error = huber_loss(tf.stop_gradient(target) - q_oneline_act)
+    self.total_error = huber_loss(tf.stop_gradient(target) - q_online_act)
     ######
 
     # construct optimization op (with gradient clipping)
@@ -245,29 +250,39 @@ class QLearner(object):
 
     #####
     # YOUR CODE HERE
-    while self.stopping_criterion_met == False:
+    # while self.stopping_criterion_met == False:
+    # self.last_obs = self.env.reset()
+    #done = False
+    
+    # while done == False:
+    
+    # store frame to replay buffer
+    idx_buffer = self.replay_buffer.store_frame(self.last_obs)
+            
+    # epsilon greedy
+    obs_input = self.replay_buffer.encode_recent_observation()
+    obs_input = obs_input.reshape(1, 84, 84, 4)
+    eps = self.exploration.value(self.t)
+        
+    if self.model_initialized == False:
+        a_t = np.random.choice(self.num_actions, 1)[0]
+    else:
+        greedy_action = self.session.run(self.q_online_greedy_idx , feed_dict = {self.obs_t_ph:obs_input})
+        indicator = np.random.choice(2, 1, p=[eps, 1-eps])
+        if indicator == 1:
+            a_t = greedy_action[0]
+        else:
+            a_t = np.random.choice(self.num_actions, 1)[0]
+    action = a_t
+            
+    # step
+    self.last_obs, reward, done, info = self.env.step(action)
+            
+    # store effect to replay buffer
+    self.replay_buffer.store_effect(idx_buffer, action, reward, done)
+    
+    if done:
         self.last_obs = self.env.reset()
-        done = False
-        while done == False:
-            # store frame to replay buffer
-            idx_buffer = self.replay_buffer.store_frame(self.last_obs)
-            
-            # epsilon greedy
-            obs_input = self.replay_buffer.encode_recent_observation()
-            eps = self.exploration.value
-            greedy_action = self.session.run(self.q_online_greedy_idx , feed_dict = {self.obs_t_ph:obs_input})
-            indicator = np.random.choice(2, 1, p=[eps, 1-eps])
-            if indicator == 1:
-                a_t = greedy_action[0]
-            else:
-                a_t = np.random.choice(self.num_actions, 1)[0]
-            action = a_t
-            
-            # step
-            self.last_obs, reward, done, info = self.env.step(action)
-            
-            # store effect to replay buffer
-            self.replay_buffer.store_effect(idx_buffer, action, reward, done)
     
   def update_model(self):
     ### 3. Perform experience replay and train the network.
@@ -316,14 +331,15 @@ class QLearner(object):
       # YOUR CODE HERE
         
         # Sample batch
-        obs_batch, act_batch, rew_batch, next_obs_batch, done_mask = self.replay_buffer.sample(batch_size)
+        obs_batch, act_batch, rew_batch, next_obs_batch, done_mask = self.replay_buffer.sample(self.batch_size)
         
         # init model if not initialized
         if self.model_initialized == False:
             initialize_interdependent_variables(self.session, tf.global_variables(), {self.obs_t_ph:obs_batch,self.obs_tp1_ph:next_obs_batch})
-        
+            self.model_initialized = True
+            
         # perform a gradient descemt
-        if double_q:
+        if self.double_q:
             _,los = self.session.run([self.train_fn, self.total_error], feed_dict={self.obs_t_ph: obs_batch, self.act_t_ph: act_batch,
                                                                                    self.rew_t_ph: rew_batch, self.obs_tp1_ph: next_obs_batch,
                                                                                    self.done_mask_ph: done_mask, self.obs_double: next_obs_batch,
@@ -338,7 +354,7 @@ class QLearner(object):
         if self.t % self.target_update_freq == 0:
             self.session.run(self.update_target_fn)
 
-      self.num_param_updates += 1
+        self.num_param_updates += 1
 
     self.t += 1
 
@@ -350,8 +366,9 @@ class QLearner(object):
 
     if len(episode_rewards) > 100:
       self.best_mean_episode_reward = max(self.best_mean_episode_reward, self.mean_episode_reward)
-
+    
     if self.t % self.log_every_n_steps == 0 and self.model_initialized:
+      print("-----------------------------")
       print("Timestep %d" % (self.t,))
       print("mean reward (100 episodes) %f" % self.mean_episode_reward)
       print("best mean reward %f" % self.best_mean_episode_reward)
@@ -360,7 +377,8 @@ class QLearner(object):
       print("learning_rate %f" % self.optimizer_spec.lr_schedule.value(self.t))
       if self.start_time is not None:
         print("running time %f" % ((time.time() - self.start_time) / 60.))
-
+      print("-----------------------------\n")
+      
       self.start_time = time.time()
 
       sys.stdout.flush()
@@ -377,4 +395,4 @@ def learn(*args, **kwargs):
     # observation
     alg.update_model()
     alg.log_progress()
-
+    
